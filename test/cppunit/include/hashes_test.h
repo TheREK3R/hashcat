@@ -22,6 +22,7 @@ public:
     void tearDown();
     static CppUnit::Test *suite();
 
+    void testOneHash();
     void testRemoveDuplicates();
     void testKeepAllHashes();
     void testRemoveDuplicatesWithSalt();

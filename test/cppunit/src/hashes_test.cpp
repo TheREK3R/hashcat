@@ -74,6 +74,8 @@ void HashesTest::setHash(int pos, u32 *digest) {
 
 CppUnit::Test *HashesTest::suite(){
     CppUnit::TestSuite* suite = new CppUnit::TestSuite("Hashes Test");
+    suite->addTest(new CppUnit::TestCaller<HashesTest>("testOneHash", 
+                &HashesTest::testOneHash));
     suite->addTest(new CppUnit::TestCaller<HashesTest>("testRemoveDuplicates", 
                 &HashesTest::testRemoveDuplicates));
     suite->addTest(new CppUnit::TestCaller<HashesTest>("testKeepAllHashes", 
@@ -87,8 +89,20 @@ CppUnit::Test *HashesTest::suite(){
     return suite;
 }
 
-void HashesTest::testRemoveDuplicates() {
+void HashesTest::testOneHash() {
     printf("\n\nHashesTest Suite\n\n");
+    printf("Running testOneHash\n");
+    setDefaultCtx(1);
+
+    // Set Hash list
+    u32 a[] = {0, 0, 0, 0};
+    setHash(0, a);
+
+    CPPUNIT_ASSERT(hashes_init_stage2(ctx) == 0);
+    CPPUNIT_ASSERT(ctx->hashes->hashes_cnt == 1);
+}
+
+void HashesTest::testRemoveDuplicates() {
     printf("Running testRemoveDuplicates\n");
     setDefaultCtx(8);
 
