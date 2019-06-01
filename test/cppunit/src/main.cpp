@@ -4,6 +4,8 @@
 #include "hashes_test.h"
 #include "sort_test.h"
 #include "salt_test.h"
+#include "filehandling_test.h"
+#include "shared_test.h"
 
 int main(){
 	CppUnit::TextUi::TestRunner runner;
@@ -22,10 +24,11 @@ int main(){
 	 *              padding.
 	 */
 	runner.addTest(ConvertTest::suite());
-
-        runner.addTest(HashesTest::suite());
-        runner.addTest(SortTest::suite());
-        runner.addTest(SaltTest::suite());
+    runner.addTest(HashesTest::suite());
+    runner.addTest(SortTest::suite());
+    runner.addTest(SaltTest::suite());
+	runner.addTest(fileHandlingTest::suite());
+	runner.addTest(sharedTest::suite());
 
 	// Run tests
 	runner.run();
