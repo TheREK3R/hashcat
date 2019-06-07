@@ -22,6 +22,7 @@
 #include "thread.h"
 #include "locking.h"
 #include "hashes.h"
+#include <limits.h>
 
 #ifdef WITH_BRAIN
 #include "brain.h"
@@ -37,30 +38,36 @@ int sort_by_string (const void *p1, const void *p2)
 
 int sort_by_digest_p0p1 (const void *v1, const void *v2, void *v3)
 {
+  if (v1 == NULL || v2 == NULL) {
+    perror("Cannot compare Null digests");
+    return INT_MIN;
+  }
+
   const u32 *d1 = (const u32 *) v1;
   const u32 *d2 = (const u32 *) v2;
 
   hashconfig_t *hashconfig = (hashconfig_t *) v3;
 
-  const u32 dgst_pos0 = hashconfig->dgst_pos0;
-  const u32 dgst_pos1 = hashconfig->dgst_pos1;
-  const u32 dgst_pos2 = hashconfig->dgst_pos2;
-  const u32 dgst_pos3 = hashconfig->dgst_pos3;
+  const u32 dgst_pos[4] = { hashconfig->dgst_pos0, 
+                            hashconfig->dgst_pos1, 
+                            hashconfig->dgst_pos2, 
+                            hashconfig->dgst_pos3 };
 
-  if (d1[dgst_pos3] > d2[dgst_pos3]) return  1;
-  if (d1[dgst_pos3] < d2[dgst_pos3]) return -1;
-  if (d1[dgst_pos2] > d2[dgst_pos2]) return  1;
-  if (d1[dgst_pos2] < d2[dgst_pos2]) return -1;
-  if (d1[dgst_pos1] > d2[dgst_pos1]) return  1;
-  if (d1[dgst_pos1] < d2[dgst_pos1]) return -1;
-  if (d1[dgst_pos0] > d2[dgst_pos0]) return  1;
-  if (d1[dgst_pos0] < d2[dgst_pos0]) return -1;
+  for (int i = 3; i >=0; i--) {
+    if (d1[dgst_pos[i]] > d2[dgst_pos[i]]) return 1;
+    if (d1[dgst_pos[i]] < d2[dgst_pos[i]]) return -1;
+  }
 
   return 0;
 }
 
 int sort_by_salt (const void *v1, const void *v2)
 {
+  if (v1 == NULL || v2 == NULL) {
+    perror("Cannot compare Null salts");
+    return INT_MIN;
+  }
+
   const salt_t *s1 = (const salt_t *) v1;
   const salt_t *s2 = (const salt_t *) v2;
 
@@ -1317,30 +1324,19 @@ int hashes_init_stage1 (hashcat_ctx_t *hashcat_ctx)
   return 0;
 }
 
-int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
+/*
+ * Removes duplicate hashes in a sorted hashlist.
+ */
+void remove_dup_hash (const hashconfig_t *hashconfig, hashes_t *hashes)
 {
-  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
-        hashes_t       *hashes       = hashcat_ctx->hashes;
-  const user_options_t *user_options = hashcat_ctx->user_options;
-
   hash_t *hashes_buf = hashes->hashes_buf;
   u32     hashes_cnt = hashes->hashes_cnt;
-
-  /**
-   * Remove duplicates
-   */
-
-  EVENT (EVENT_HASHLIST_UNIQUE_HASH_PRE);
 
   u32 hashes_cnt_new = 1;
 
   for (u32 hashes_pos = 1; hashes_pos < hashes_cnt; hashes_pos++)
   {
-    if (hashconfig->potfile_keep_all_hashes == true)
-    {
-      // do not sort, because we need to keep all hashes in this particular case
-    }
-    else if (hashconfig->is_salted == true)
+    if (hashconfig->is_salted == true)
     {
       if (sort_by_salt (hashes_buf[hashes_pos].salt, hashes_buf[hashes_pos - 1].salt) == 0)
       {
@@ -1366,9 +1362,84 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
     memset (&hashes_buf[i], 0, sizeof (hash_t));
   }
 
-  hashes_cnt = hashes_cnt_new;
+  hashes->hashes_cnt = hashes_cnt_new;
 
-  hashes->hashes_cnt = hashes_cnt;
+  hashes->hashes_buf = hashes_buf;
+}
+
+/*
+ * set_new_esalt: Used to construct new esalts buffer from existing buffer.  This copies esalt in hash buffer
+ * at position 'pos' to the new buffer.
+ */
+void set_new_esalt (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *esalts_buf_new, int pos)
+{
+  char *esalts_buf_new_ptr = ((char *) esalts_buf_new) + (pos * hashconfig->esalt_size);
+
+  memcpy (esalts_buf_new_ptr, hashes_buf[pos].esalt, hashconfig->esalt_size);
+
+  hashes_buf[pos].esalt = esalts_buf_new_ptr;
+}
+
+/*
+ * set_new_hooksalt: Used to construct new hooksalt buffer from existing buffer.  This copies hooksalt in hash buffer
+ * at position 'salt_cnt' to the new buffer at position 'pos'.  Enable is_new flag to create new hook salt without
+ * initializing from the old one.
+ */
+void set_new_hooksalt (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *hook_salts_buf_new, int salt_cnt, int pos, int is_new)
+{
+  char *hook_salts_buf_new_ptr = ((char *) hook_salts_buf_new) + (salt_cnt * hashconfig->hook_salt_size);
+
+  if (is_new == false) memcpy (hook_salts_buf_new_ptr, hashes_buf[pos].hook_salt, hashconfig->hook_salt_size);
+
+  hashes_buf[pos].hook_salt = hook_salts_buf_new_ptr;
+}
+
+/*
+ * set_new_salt: Used to construct new salt buffer from existing buffer.  This copies salt in hash buffer
+ * at position 'salt_cnt' to the new buffer at position 'pos'.
+ */
+void set_new_salt (hash_t *hashes_buf, salt_t *salts_buf_new, salt_t **salt_buf, int salts_cnt, int pos)
+{
+  *salt_buf = &salts_buf_new[salts_cnt];
+
+  memcpy (*salt_buf, hashes_buf[pos].salt, sizeof (salt_t));
+
+  hashes_buf[pos].salt = *salt_buf;
+
+  (*salt_buf)->digests_cnt    = 0;
+  (*salt_buf)->digests_done   = 0;
+  (*salt_buf)->digests_offset = pos;
+}
+
+/*
+ * set_new_digest: Used to construct new digest buffer from existing buffer.  This copies digest in hash buffer
+ * at position 'pos' to the new buffer.
+ */
+void set_new_digest (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *digests_buf_new, int pos)
+{
+  char *digests_buf_new_ptr = ((char *) digests_buf_new) + (pos * hashconfig->dgst_size);
+
+  memcpy (digests_buf_new_ptr, hashes_buf[pos].digest, hashconfig->dgst_size);
+
+  hashes_buf[pos].digest = digests_buf_new_ptr;
+}
+
+int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
+{
+  const hashconfig_t   *hashconfig   = hashcat_ctx->hashconfig;
+        hashes_t       *hashes       = hashcat_ctx->hashes;
+  const user_options_t *user_options = hashcat_ctx->user_options;
+
+  EVENT (EVENT_HASHLIST_UNIQUE_HASH_PRE);
+
+  // do not remove duplicates if this option is set to true.  In that case, keep all original hashes.
+  if (hashconfig->potfile_keep_all_hashes == false) 
+  {
+    remove_dup_hash(hashconfig, hashes);
+  }
+
+  hash_t *hashes_buf = hashes->hashes_buf;
+  u32     hashes_cnt = hashes->hashes_cnt;
 
   EVENT (EVENT_HASHLIST_UNIQUE_HASH_POST);
 
@@ -1425,43 +1496,37 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
   {
     // copied from inner loop
 
-    salt_buf = &salts_buf_new[salts_cnt];
+    set_new_salt (hashes_buf, salts_buf_new, &salt_buf, salts_cnt, 0);
+    /*salt_buf = &salts_buf_new[salts_cnt];
 
     memcpy (salt_buf, hashes_buf[0].salt, sizeof (salt_t));
 
-    hashes_buf[0].salt = salt_buf;
+    hashes_buf[0].salt = salt_buf;*/
 
     if (hashconfig->hook_salt_size > 0)
     {
-      char *hook_salts_buf_new_ptr = ((char *) hook_salts_buf_new) + (salts_cnt * hashconfig->hook_salt_size);
-
-      memcpy (hook_salts_buf_new_ptr, hashes_buf[0].hook_salt, hashconfig->hook_salt_size);
-
-      hashes_buf[0].hook_salt = hook_salts_buf_new_ptr;
+      set_new_hooksalt(hashconfig, hashes_buf, hook_salts_buf_new, salts_cnt, 0, false);
     }
 
-    salt_buf->digests_cnt    = 0;
+    /*salt_buf->digests_cnt    = 0;
     salt_buf->digests_done   = 0;
-    salt_buf->digests_offset = 0;
+    salt_buf->digests_offset = 0;*/
 
     salts_cnt++;
   }
 
   salt_buf->digests_cnt++;
 
-  char *digests_buf_new_ptr = ((char *) digests_buf_new) + (0 * hashconfig->dgst_size);
+  set_new_digest (hashconfig, hashes_buf, digests_buf_new, 0);
+  /*char *digests_buf_new_ptr = ((char *) digests_buf_new) + (0 * hashconfig->dgst_size);
 
   memcpy (digests_buf_new_ptr, hashes_buf[0].digest, hashconfig->dgst_size);
 
-  hashes_buf[0].digest = digests_buf_new_ptr;
+  hashes_buf[0].digest = digests_buf_new_ptr;*/
 
   if (hashconfig->esalt_size > 0)
   {
-    char *esalts_buf_new_ptr = ((char *) esalts_buf_new) + (0 * hashconfig->esalt_size);
-
-    memcpy (esalts_buf_new_ptr, hashes_buf[0].esalt, hashconfig->esalt_size);
-
-    hashes_buf[0].esalt = esalts_buf_new_ptr;
+    set_new_esalt(hashconfig, hashes_buf, esalts_buf_new, 0);
   }
 
   if ((user_options->username == true) || (hashconfig->opts_type & OPTS_TYPE_HASH_COPY) || (hashconfig->opts_type & OPTS_TYPE_HASH_SPLIT))
@@ -1477,24 +1542,21 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
     {
       if (sort_by_salt (hashes_buf[hashes_pos].salt, hashes_buf[hashes_pos - 1].salt) != 0)
       {
-        salt_buf = &salts_buf_new[salts_cnt];
+        set_new_salt (hashes_buf, salts_buf_new, &salt_buf, salts_cnt, hashes_pos);
+        /*salt_buf = &salts_buf_new[salts_cnt];
 
         memcpy (salt_buf, hashes_buf[hashes_pos].salt, sizeof (salt_t));
 
-        hashes_buf[hashes_pos].salt = salt_buf;
+        hashes_buf[hashes_pos].salt = salt_buf;*/
 
         if (hashconfig->hook_salt_size > 0)
         {
-          char *hook_salts_buf_new_ptr = ((char *) hook_salts_buf_new) + (salts_cnt * hashconfig->hook_salt_size);
-
-          memcpy (hook_salts_buf_new_ptr, hashes_buf[hashes_pos].hook_salt, hashconfig->hook_salt_size);
-
-          hashes_buf[hashes_pos].hook_salt = hook_salts_buf_new_ptr;
+          set_new_hooksalt(hashconfig, hashes_buf, hook_salts_buf_new, salts_cnt, hashes_pos, false);
         }
 
-        salt_buf->digests_cnt    = 0;
+        /*salt_buf->digests_cnt    = 0;
         salt_buf->digests_done   = 0;
-        salt_buf->digests_offset = hashes_pos;
+        salt_buf->digests_offset = hashes_pos;*/
 
         salts_cnt++;
       }
@@ -1503,27 +1565,22 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
 
       if (hashconfig->hook_salt_size > 0)
       {
-        char *hook_salts_buf_new_ptr = ((char *) hook_salts_buf_new) + (salts_cnt * hashconfig->hook_salt_size);
-
-        hashes_buf[hashes_pos].hook_salt = hook_salts_buf_new_ptr;
+        set_new_hooksalt(hashconfig, hashes_buf, hook_salts_buf_new, salts_cnt, hashes_pos, true);
       }
     }
 
     salt_buf->digests_cnt++;
 
-    digests_buf_new_ptr = ((char *) digests_buf_new) + (hashes_pos * hashconfig->dgst_size);
+    set_new_digest (hashconfig, hashes_buf, digests_buf_new, hashes_pos);
+    /*digests_buf_new_ptr = ((char *) digests_buf_new) + (hashes_pos * hashconfig->dgst_size);
 
     memcpy (digests_buf_new_ptr, hashes_buf[hashes_pos].digest, hashconfig->dgst_size);
 
-    hashes_buf[hashes_pos].digest = digests_buf_new_ptr;
+    hashes_buf[hashes_pos].digest = digests_buf_new_ptr;*/
 
     if (hashconfig->esalt_size > 0)
     {
-      char *esalts_buf_new_ptr = ((char *) esalts_buf_new) + (hashes_pos * hashconfig->esalt_size);
-
-      memcpy (esalts_buf_new_ptr, hashes_buf[hashes_pos].esalt, hashconfig->esalt_size);
-
-      hashes_buf[hashes_pos].esalt = esalts_buf_new_ptr;
+      set_new_esalt(hashconfig, hashes_buf, esalts_buf_new, 0);
     }
 
     if ((user_options->username == true) || (hashconfig->opts_type & OPTS_TYPE_HASH_COPY) || (hashconfig->opts_type & OPTS_TYPE_HASH_SPLIT))

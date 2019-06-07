@@ -4,6 +4,7 @@
 #include <cppunit/TestCase.h>
 #include <cppunit/TestCaller.h>
 #include <cppunit/TestSuite.h>
+#include <limits.h>
 
 #include "sort_test.h"
 
@@ -50,10 +51,10 @@ CppUnit::Test *SortTest::suite(){
                 &SortTest::testLessThanDigest3));
     suite->addTest(new CppUnit::TestCaller<SortTest>("testLessThanDigest4", 
                 &SortTest::testLessThanDigest4));
-    /*suite->addTest(new CppUnit::TestCaller<SortTest>("testNullDigest1", 
+    suite->addTest(new CppUnit::TestCaller<SortTest>("testNullDigest1", 
                 &SortTest::testNullDigest1));
     suite->addTest(new CppUnit::TestCaller<SortTest>("testNullDigest2", 
-                &SortTest::testNullDigest2));*/
+                &SortTest::testNullDigest2));
     return suite;
 }
 
@@ -135,7 +136,7 @@ void SortTest::testNullDigest1() {
     setDefaultCtx();
     u32 *d1 = NULL;
     u32 d2[4] = { 512, 256, 128, 64 };
-    CPPUNIT_ASSERT_THROW(sort_by_digest_p0p1(d1, d2, ctx->hashconfig), std::invalid_argument);
+    CPPUNIT_ASSERT(sort_by_digest_p0p1(d1, d2, ctx->hashconfig) == INT_MIN);
 }
 
 void SortTest::testNullDigest2() {
@@ -143,6 +144,6 @@ void SortTest::testNullDigest2() {
     setDefaultCtx();
     u32 d1[4] = { 512, 256, 128, 64 };
     u32 *d2 = NULL;
-    CPPUNIT_ASSERT_THROW(sort_by_digest_p0p1(d1, d2, ctx->hashconfig), std::invalid_argument);
+    CPPUNIT_ASSERT(sort_by_digest_p0p1(d1, d2, ctx->hashconfig) == INT_MIN);
 }
 

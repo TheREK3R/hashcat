@@ -22,6 +22,11 @@ int check_cracked (hashcat_ctx_t *hashcat_ctx, hc_device_param_t *device_param, 
 
 int hashes_init_filename  (hashcat_ctx_t *hashcat_ctx);
 int hashes_init_stage1    (hashcat_ctx_t *hashcat_ctx);
+void remove_dup_hash      (const hashconfig_t *hashconfig, hashes_t *hashes);
+void set_new_esalt        (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *esalts_buf_new, int pos);
+void set_new_hooksalt     (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *hook_salts_buf_new, int salts_cnt, int pos, int is_new);
+void set_new_salt         (hash_t *hashes_buf, salt_t *salts_buf_new, salt_t **salt_buf, int salts_cnt, int pos);
+void set_new_digest       (const hashconfig_t *hashconfig, hash_t *hashes_buf, void *digests_buf_new, int pos);
 int hashes_init_stage2    (hashcat_ctx_t *hashcat_ctx);
 int hashes_init_stage3    (hashcat_ctx_t *hashcat_ctx);
 int hashes_init_stage4    (hashcat_ctx_t *hashcat_ctx);

@@ -4,6 +4,7 @@
 #include <cppunit/TestCase.h>
 #include <cppunit/TestCaller.h>
 #include <cppunit/TestSuite.h>
+#include <limits.h>
 
 #include "salt_test.h"
 
@@ -55,10 +56,10 @@ CppUnit::Test *SaltTest::suite(){
                 &SaltTest::testSaltBufPcGreaterThan));
     suite->addTest(new CppUnit::TestCaller<SaltTest>("testSaltBufPcLessThan", 
                 &SaltTest::testSaltBufPcLessThan));
-    /*suite->addTest(new CppUnit::TestCaller<SaltTest>("testNullSalt1", 
+    suite->addTest(new CppUnit::TestCaller<SaltTest>("testNullSalt1", 
                 &SaltTest::testNullSalt1));
     suite->addTest(new CppUnit::TestCaller<SaltTest>("testNullSalt2", 
-                &SaltTest::testNullSalt2));*/
+                &SaltTest::testNullSalt2));
     return suite;
 }
 
@@ -171,13 +172,13 @@ void SaltTest::testNullSalt1() {
     printf("Running testNullSalt1\n");
     setDefaultSalt();
 
-    CPPUNIT_ASSERT_THROW(sort_by_salt(NULL, s2), std::invalid_argument);
+    CPPUNIT_ASSERT(sort_by_salt(NULL, s2) == INT_MIN);
 }
 
 void SaltTest::testNullSalt2() {
     printf("Running testNullSalt2\n");
     setDefaultSalt();
 
-    CPPUNIT_ASSERT_THROW(sort_by_salt(s1, NULL), std::invalid_argument);
+    CPPUNIT_ASSERT(sort_by_salt(s1, NULL) == INT_MIN);
 }
 
