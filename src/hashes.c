@@ -1497,20 +1497,11 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
     // copied from inner loop
 
     set_new_salt (hashes_buf, salts_buf_new, &salt_buf, salts_cnt, 0);
-    /*salt_buf = &salts_buf_new[salts_cnt];
-
-    memcpy (salt_buf, hashes_buf[0].salt, sizeof (salt_t));
-
-    hashes_buf[0].salt = salt_buf;*/
 
     if (hashconfig->hook_salt_size > 0)
     {
       set_new_hooksalt(hashconfig, hashes_buf, hook_salts_buf_new, salts_cnt, 0, false);
     }
-
-    /*salt_buf->digests_cnt    = 0;
-    salt_buf->digests_done   = 0;
-    salt_buf->digests_offset = 0;*/
 
     salts_cnt++;
   }
@@ -1518,11 +1509,6 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
   salt_buf->digests_cnt++;
 
   set_new_digest (hashconfig, hashes_buf, digests_buf_new, 0);
-  /*char *digests_buf_new_ptr = ((char *) digests_buf_new) + (0 * hashconfig->dgst_size);
-
-  memcpy (digests_buf_new_ptr, hashes_buf[0].digest, hashconfig->dgst_size);
-
-  hashes_buf[0].digest = digests_buf_new_ptr;*/
 
   if (hashconfig->esalt_size > 0)
   {
@@ -1543,20 +1529,11 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
       if (sort_by_salt (hashes_buf[hashes_pos].salt, hashes_buf[hashes_pos - 1].salt) != 0)
       {
         set_new_salt (hashes_buf, salts_buf_new, &salt_buf, salts_cnt, hashes_pos);
-        /*salt_buf = &salts_buf_new[salts_cnt];
-
-        memcpy (salt_buf, hashes_buf[hashes_pos].salt, sizeof (salt_t));
-
-        hashes_buf[hashes_pos].salt = salt_buf;*/
 
         if (hashconfig->hook_salt_size > 0)
         {
           set_new_hooksalt(hashconfig, hashes_buf, hook_salts_buf_new, salts_cnt, hashes_pos, false);
         }
-
-        /*salt_buf->digests_cnt    = 0;
-        salt_buf->digests_done   = 0;
-        salt_buf->digests_offset = hashes_pos;*/
 
         salts_cnt++;
       }
@@ -1572,11 +1549,6 @@ int hashes_init_stage2 (hashcat_ctx_t *hashcat_ctx)
     salt_buf->digests_cnt++;
 
     set_new_digest (hashconfig, hashes_buf, digests_buf_new, hashes_pos);
-    /*digests_buf_new_ptr = ((char *) digests_buf_new) + (hashes_pos * hashconfig->dgst_size);
-
-    memcpy (digests_buf_new_ptr, hashes_buf[hashes_pos].digest, hashconfig->dgst_size);
-
-    hashes_buf[hashes_pos].digest = digests_buf_new_ptr;*/
 
     if (hashconfig->esalt_size > 0)
     {
