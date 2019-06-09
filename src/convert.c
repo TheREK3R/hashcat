@@ -215,13 +215,26 @@ void exec_hexify (const u8 *buf, const size_t len, u8 *out)
   out[max_len * 2] = 0;
 }
 
+bool is_base64_padding (const u8 c) {
+    return c == '=';
+}
+
 bool is_valid_base64a_string (const u8 *s, const size_t len)
 {
+  // base64 strings should have length divisible by 4
+  if(len % 4 != 0) return false;
+
+  bool padding = false;
   for (size_t i = 0; i < len; i++)
   {
     const u8 c = s[i];
-
-    if (is_valid_base64a_char (c) == false) return false;
+    if (is_base64_padding(c)){
+        padding = true; // Flag that padding has been seen
+        continue;
+    }
+    // If padding has been seen, we shouldn't make it this far,
+    // as padding should only occur at the end of the base64 string
+    if (padding || is_valid_base64a_char (c) == false) return false;
   }
 
   return true;
@@ -235,21 +248,29 @@ bool is_valid_base64a_char (const u8 c)
 
   if (c == '+') return true;
   if (c == '/') return true;
-  if (c == '=') return true;
 
   return false;
 }
 
 bool is_valid_base64b_string (const u8 *s, const size_t len)
 {
-  for (size_t i = 0; i < len; i++)
-  {
-    const u8 c = s[i];
+    // base64 strings should have length divisible by 4
+    if(len % 4 != 0) return false;
 
-    if (is_valid_base64b_char (c) == false) return false;
-  }
+    bool padding = false;
+    for (size_t i = 0; i < len; i++)
+    {
+      const u8 c = s[i];
+      if (is_base64_padding(c)){
+          padding = true; // Flag that padding has been seen
+          continue;
+      }
+      // If padding has been seen, we shouldn't make it this far,
+      // as padding should only occur at the end of the base64 string
+      if (padding || is_valid_base64b_char (c) == false) return false;
+    }
 
-  return true;
+    return true;
 }
 
 bool is_valid_base64b_char (const u8 c)
@@ -260,21 +281,29 @@ bool is_valid_base64b_char (const u8 c)
 
   if (c == '.') return true;
   if (c == '/') return true;
-  if (c == '=') return true;
 
   return false;
 }
 
 bool is_valid_base64c_string (const u8 *s, const size_t len)
 {
-  for (size_t i = 0; i < len; i++)
-  {
-    const u8 c = s[i];
+    // base64 strings should have length divisible by 4
+    if(len % 4 != 0) return false;
 
-    if (is_valid_base64c_char (c) == false) return false;
-  }
+    bool padding = false;
+    for (size_t i = 0; i < len; i++)
+    {
+      const u8 c = s[i];
+      if (is_base64_padding(c)){
+          padding = true; // Flag that padding has been seen
+          continue;
+      }
+      // If padding has been seen, we shouldn't make it this far,
+      // as padding should only occur at the end of the base64 string
+      if (padding || is_valid_base64a_char (c) == false) return false;
+    }
 
-  return true;
+    return true;
 }
 
 bool is_valid_base64c_char (const u8 c)
@@ -285,7 +314,6 @@ bool is_valid_base64c_char (const u8 c)
 
   if (c == '_') return true;
   if (c == '-') return true;
-  if (c == '=') return true;
 
   return false;
 }
