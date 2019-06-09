@@ -230,6 +230,7 @@ bool is_valid_base64a_string (const u8 *s, const size_t len)
     const u8 c = s[i];
     if (is_base64_padding(c)){
         padding = true; // Flag that padding has been seen
+        if(i < len - 3) return false; // Cannot have more than 3 padding chars
         continue;
     }
     // If padding has been seen, we shouldn't make it this far,
@@ -263,6 +264,7 @@ bool is_valid_base64b_string (const u8 *s, const size_t len)
       const u8 c = s[i];
       if (is_base64_padding(c)){
           padding = true; // Flag that padding has been seen
+          if(i < len - 3) return false; // Cannot have more than 3 padding chars
           continue;
       }
       // If padding has been seen, we shouldn't make it this far,
@@ -296,6 +298,7 @@ bool is_valid_base64c_string (const u8 *s, const size_t len)
       const u8 c = s[i];
       if (is_base64_padding(c)){
           padding = true; // Flag that padding has been seen
+          if(i < len - 3) return false; // Cannot have more than 3 padding chars
           continue;
       }
       // If padding has been seen, we shouldn't make it this far,
